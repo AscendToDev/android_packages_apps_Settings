@@ -23,6 +23,7 @@ import android.content.IntentFilter;
 import android.nfc.NfcAdapter;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.preference.ListPreference;
 import android.support.v14.preference.SwitchPreference;
 import android.support.v7.preference.Preference;
 import android.support.v7.preference.PreferenceScreen;
@@ -40,6 +41,7 @@ public class NfcEnabler implements Preference.OnPreferenceChangeListener {
     private final Context mContext;
     private final SwitchPreference mSwitch;
     private final RestrictedPreference mAndroidBeam;
+    private final ListPreference mNfcPollingMode;
     private final NfcAdapter mNfcAdapter;
     private final IntentFilter mIntentFilter;
     private boolean mBeamDisallowedBySystem;
@@ -56,10 +58,11 @@ public class NfcEnabler implements Preference.OnPreferenceChangeListener {
     };
 
     public NfcEnabler(Context context, SwitchPreference switchPreference,
-            RestrictedPreference androidBeam) {
+            RestrictedPreference androidBeam, ListPreference nfcPollingMode) {
         mContext = context;
         mSwitch = switchPreference;
         mAndroidBeam = androidBeam;
+        mNfcPollingMode = nfcPollingMode;
         mNfcAdapter = NfcAdapter.getDefaultAdapter(context);
         mBeamDisallowedBySystem = RestrictedLockUtils.hasBaseUserRestriction(context,
                 UserManager.DISALLOW_OUTGOING_BEAM, UserHandle.myUserId());
@@ -68,6 +71,7 @@ public class NfcEnabler implements Preference.OnPreferenceChangeListener {
             // NFC is not supported
             mSwitch.setEnabled(false);
             mAndroidBeam.setEnabled(false);
+	    mNfcPollingMode.setEnabled(false);
             mIntentFilter = null;
             return;
         }
@@ -116,10 +120,12 @@ public class NfcEnabler implements Preference.OnPreferenceChangeListener {
             mSwitch.setEnabled(true);
             mAndroidBeam.setEnabled(false);
             mAndroidBeam.setSummary(R.string.android_beam_disabled_summary);
+	    mNfcPollingMode.setEnabled(false);
             break;
         case NfcAdapter.STATE_ON:
             mSwitch.setChecked(true);
             mSwitch.setEnabled(true);
+	    mNfcPollingMode.setEnabled(true);
             if (mBeamDisallowedBySystem) {
                 mAndroidBeam.setDisabledByAdmin(null);
                 mAndroidBeam.setEnabled(false);
@@ -136,11 +142,13 @@ public class NfcEnabler implements Preference.OnPreferenceChangeListener {
             mSwitch.setChecked(true);
             mSwitch.setEnabled(false);
             mAndroidBeam.setEnabled(false);
+	    mNfcPollingMode.setEnabled(false);
             break;
         case NfcAdapter.STATE_TURNING_OFF:
             mSwitch.setChecked(false);
             mSwitch.setEnabled(false);
             mAndroidBeam.setEnabled(false);
+	    mNfcPollingMode.setEnabled(false);
             break;
         }
     }

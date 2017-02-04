@@ -37,6 +37,7 @@ import android.os.Bundle;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.preference.ListPreference;
 import android.provider.SearchIndexableResource;
 import android.provider.Settings;
 import android.support.v14.preference.SwitchPreference;
@@ -69,6 +70,7 @@ public class WirelessSettings extends SettingsPreferenceFragment
     private static final String KEY_RANDOMIZE_MAC = "randomize_mac";
     private static final String KEY_TOGGLE_AIRPLANE = "toggle_airplane";
     private static final String KEY_TOGGLE_NFC = "toggle_nfc";
+    private static final String KEY_NFC_POLLING_MODE = "nfc_polling_mode";
     private static final String KEY_WIMAX_SETTINGS = "wimax_settings";
     private static final String KEY_ANDROID_BEAM_SETTINGS = "android_beam_settings";
     private static final String KEY_VPN_SETTINGS = "vpn_settings";
@@ -90,6 +92,7 @@ public class WirelessSettings extends SettingsPreferenceFragment
     private SwitchPreference mAirplaneModePreference;
     private NfcEnabler mNfcEnabler;
     private NfcAdapter mNfcAdapter;
+    private ListPreference mNfcPollingMode;
 
     private ConnectivityManager mCm;
     private TelephonyManager mTm;
@@ -247,11 +250,16 @@ public class WirelessSettings extends SettingsPreferenceFragment
         }
         mAirplaneModePreference = (SwitchPreference) findPreference(KEY_TOGGLE_AIRPLANE);
         SwitchPreference nfc = (SwitchPreference) findPreference(KEY_TOGGLE_NFC);
+        mNfcPollingMode = (ListPreference) findPreference(KEY_NFC_POLLING_MODE);
+        mNfcPollingMode.setOnPreferenceChangeListener(this);
+        mNfcPollingMode.setValue((Settings.AOKP.getInt(activity.getContentResolver(),
+                Settings.System.NFC_POLLING_MODE, 3)) + "");
+        updateNfcPolling();
         RestrictedPreference androidBeam = (RestrictedPreference) findPreference(
                 KEY_ANDROID_BEAM_SETTINGS);
 
         mAirplaneModeEnabler = new AirplaneModeEnabler(activity, mAirplaneModePreference);
-        mNfcEnabler = new NfcEnabler(activity, nfc, androidBeam);
+        mNfcEnabler = new NfcEnabler(activity, nfc, androidBeam, mNfcPollingMode);
 
         mButtonWfc = (PreferenceScreen) findPreference(KEY_WFC_SETTINGS);
 
@@ -301,6 +309,7 @@ public class WirelessSettings extends SettingsPreferenceFragment
         if (mNfcAdapter == null) {
             getPreferenceScreen().removePreference(nfc);
             getPreferenceScreen().removePreference(androidBeam);
+	    getPreferenceScreen().removePreference(mNfcPollingMode);
             mNfcEnabler = null;
         }
 
@@ -362,6 +371,25 @@ public class WirelessSettings extends SettingsPreferenceFragment
         }
     }
 
+    private void updateNfcPolling() {
+       int resId;
+        String value = Settings.AOKP.getString(getContentResolver(),
+                Settings.AOKP.NFC_POLLING_MODE);
+        String[] pollingArray = getResources().getStringArray(R.array.nfc_polling_mode_values);
+
+        if (pollingArray[0].equals(value)) {
+            resId = R.string.nfc_polling_mode_screen_off;
+            mNfcPollingMode.setValueIndex(0);
+        } else if (pollingArray[1].equals(value)) {
+            resId = R.string.nfc_polling_mode_screen_locked;
+            mNfcPollingMode.setValueIndex(1);
+        } else {
+            resId = R.string.nfc_polling_mode_screen_unlocked;
+            mNfcPollingMode.setValueIndex(2);
+        }
+        mNfcPollingMode.setSummary(getResources().getString(resId));
+    }
+
     @Override
     public void onResume() {
         super.onResume();
@@ -393,6 +421,12 @@ public class WirelessSettings extends SettingsPreferenceFragment
          if (preference == mRandomizeMac) {
              SystemProperties.set(RANDOMIZE_MAC_PERSIST_PROP, (Boolean) newValue ? "1" : "0");
              return true;
+	 } else if (preference == mNfcPollingMode) {
+            int newVal = Integer.parseInt((String) newValue);
+            Settings.System.putInt(getActivity().getContentResolver(),
+                    Settings.System.NFC_POLLING_MODE, newVal);
+            updateNfcPolling();
+            return true;
          }
 
          return false;
